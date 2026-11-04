@@ -1,8 +1,14 @@
 import os
 import sys
+import time
 from pathlib import Path
 
 import pytest
+
+# The fixtures use Nairobi local times. PySpark converts timestamps to the
+# machine's local zone on collect(), so pin it here or CI (UTC) shifts them by 3h.
+os.environ["TZ"] = "Africa/Nairobi"
+time.tzset()
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -18,6 +24,7 @@ def spark():
                .config("spark.sql.shuffle.partitions", "2")
                .config("spark.default.parallelism", "2")
                .config("spark.sql.session.timeZone", "Africa/Nairobi")
+               .config("spark.driver.extraJavaOptions", "-Duser.timezone=Africa/Nairobi")
                .config("spark.ui.enabled", "false")
                .config("spark.ui.showConsoleProgress", "false")
                .getOrCreate())
