@@ -1,0 +1,22 @@
+{
+  "name": "tr_daily_0215_eat",
+  "properties": {
+    "type": "ScheduleTrigger",
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1,
+        "startTime": "2025-10-01T02:15:00",
+        "timeZone": "E. Africa Standard Time"
+      }
+    },
+    "pipelines": [
+      {
+        "pipelineReference": {
+          "referenceName": "pl_nairobi_delivery_medallion",
+          "type": "PipelineReference"
+        }
+      }
+    ]
+  }
+}

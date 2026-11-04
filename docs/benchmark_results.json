@@ -1,0 +1,108 @@
+{
+  "run_at": "2026-10-15T11:38:34.440445+00:00",
+  "distinct_orders": 5000000,
+  "generation_seconds": 152.7,
+  "stage_seconds": {
+    "bronze": 115.03,
+    "silver": 388.01,
+    "gold": 107.01,
+    "dq": 26.77
+  },
+  "stages": {
+    "bronze": {
+      "seconds": 115.03,
+      "batch_id": "c5456c2f-ad71-4bbe-9d64-e8f7c656364b",
+      "rows": {
+        "orders": 5073779,
+        "status_events": 1311063,
+        "zones": 15,
+        "merchants": 2000,
+        "couriers": 2500
+      }
+    },
+    "silver": {
+      "seconds": 388.01,
+      "rows": {
+        "bronze_order_rows": 5073779,
+        "deduped_orders": 5000000,
+        "valid_orders": 4945463,
+        "quarantined_orders": 54537,
+        "resolved_by_late_event": 139020,
+        "still_in_transit": 10402,
+        "duplicates_removed": 73779,
+        "raw_events": 1311063,
+        "quarantined_events": 138,
+        "duplicate_events_dropped": 25922
+      },
+      "dq_rule_failures": {
+        "coordinates_out_of_bounds": 15215,
+        "invalid_basket_value": 14802,
+        "missing_merchant_id": 7631,
+        "orphan_courier_id": 5077,
+        "invalid_order_ts": 5027,
+        "delivered_before_ordered": 4562,
+        "unknown_zone": 2452,
+        "implausible_delivery_time": 3
+      }
+    },
+    "gold": {
+      "seconds": 107.01,
+      "rows": {
+        "daily_zone_kpis": 5475,
+        "courier_performance": 30000,
+        "merchant_ranking": 24000,
+        "hourly_demand": 2520
+      }
+    },
+    "dq": {
+      "seconds": 26.77,
+      "checks_passed": 11,
+      "checks_failed": 0
+    }
+  },
+  "rows": {
+    "bronze_order_rows": 5073779,
+    "deduped_orders": 5000000,
+    "valid_orders": 4945463,
+    "quarantined_orders": 54537,
+    "resolved_by_late_event": 139020,
+    "still_in_transit": 10402,
+    "duplicates_removed": 73779,
+    "raw_events": 1311063,
+    "quarantined_events": 138,
+    "duplicate_events_dropped": 25922
+  },
+  "storage": {
+    "landing (CSV + JSONL)": {
+      "mb": 1255.6,
+      "files": 29
+    },
+    "bronze (Parquet)": {
+      "mb": 374.4,
+      "files": 17
+    },
+    "silver (Parquet)": {
+      "mb": 353.6,
+      "files": 374
+    },
+    "gold (Parquet)": {
+      "mb": 3.8,
+      "files": 390
+    }
+  },
+  "haversine": {
+    "rows": 4945463,
+    "native Spark SQL functions": 1.41,
+    "pandas (Arrow) UDF": 6.19,
+    "row-at-a-time Python UDF": 17.47
+  },
+  "env": {
+    "cpu_cores": 2,
+    "ram_gb": 7.8,
+    "driver_memory": "5g",
+    "spark": "4.0.1",
+    "python": "3.13.16",
+    "java": "21.0.12.1",
+    "shuffle_partitions": "16"
+  }
+}

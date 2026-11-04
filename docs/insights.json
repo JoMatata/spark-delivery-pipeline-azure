@@ -1,0 +1,164 @@
+{
+  "total_orders": 4945463,
+  "delivered_orders": 4691054,
+  "gmv_kes": 7904065520.0,
+  "avg_basket_kes": 1685.0,
+  "city_avg_delivery_min": 35.9,
+  "city_on_time_pct": 78.1,
+  "city_cancellation_pct": 4.93,
+  "orders_first_month": 334641,
+  "orders_last_month": 470784,
+  "growth_first_to_last_month_pct": 40.7,
+  "peak_month": "2026-08",
+  "peak_month_orders": 475649,
+  "december_vs_november_pct": 15.4,
+  "january_vs_december_pct": -18.3,
+  "busiest_hour": 19,
+  "busiest_hour_orders_per_day": 1425.7,
+  "quietest_hour": 3,
+  "busiest_day_of_week": 6,
+  "quietest_day_of_week": 2,
+  "saturday_vs_tuesday_pct": 37.7,
+  "slowest_zone": "Kasarani",
+  "slowest_zone_min": 41.0,
+  "fastest_zone": "Kileleshwa",
+  "fastest_zone_min": 33.7,
+  "worst_on_time_zone": "Eastleigh",
+  "worst_on_time_zone_pct": 73.2,
+  "best_on_time_zone": "Runda",
+  "best_on_time_zone_pct": 81.7,
+  "highest_cancellation_zone": "Kasarani",
+  "highest_cancellation_zone_pct": 6.6,
+  "rainy_apr_may_avg_delivery_min": 37.5,
+  "dry_months_avg_delivery_min": 35.3,
+  "evening_rush_18h_avg_delivery_min": 39.3,
+  "mid_afternoon_15h_avg_delivery_min": 33.3,
+  "on_time_pct_by_vehicle": {
+    "bicycle": 54.9,
+    "car": 73.2,
+    "motorbike": 83.5
+  },
+  "top_10pct_merchants_gmv_share_pct": 41.4,
+  "zone_table": [
+    {
+      "zone_name": "Kilimani",
+      "orders": 544224,
+      "avg_delivery_time_min": 34.24,
+      "on_time_pct": 79.06,
+      "cancellation_pct": 4.55,
+      "gmv": 838375090.0
+    },
+    {
+      "zone_name": "Westlands",
+      "orders": 543021,
+      "avg_delivery_time_min": 35.01,
+      "on_time_pct": 75.92,
+      "cancellation_pct": 4.78,
+      "gmv": 859857650.0
+    },
+    {
+      "zone_name": "Kileleshwa",
+      "orders": 395926,
+      "avg_delivery_time_min": 33.72,
+      "on_time_pct": 80.16,
+      "cancellation_pct": 4.42,
+      "gmv": 598602120.0
+    },
+    {
+      "zone_name": "Lavington",
+      "orders": 346647,
+      "avg_delivery_time_min": 34.9,
+      "on_time_pct": 80.97,
+      "cancellation_pct": 4.5,
+      "gmv": 601999100.0
+    },
+    {
+      "zone_name": "Embakasi",
+      "orders": 346508,
+      "avg_delivery_time_min": 39.9,
+      "on_time_pct": 73.99,
+      "cancellation_pct": 6.4,
+      "gmv": 534318990.0
+    },
+    {
+      "zone_name": "CBD",
+      "orders": 345866,
+      "avg_delivery_time_min": 34.79,
+      "on_time_pct": 76.62,
+      "cancellation_pct": 4.85,
+      "gmv": 554958290.0
+    },
+    {
+      "zone_name": "Parklands",
+      "orders": 345188,
+      "avg_delivery_time_min": 33.81,
+      "on_time_pct": 78.56,
+      "cancellation_pct": 4.44,
+      "gmv": 500283840.0
+    },
+    {
+      "zone_name": "Karen",
+      "orders": 297687,
+      "avg_delivery_time_min": 39.62,
+      "on_time_pct": 81.03,
+      "cancellation_pct": 5.4,
+      "gmv": 497884340.0
+    },
+    {
+      "zone_name": "South C",
+      "orders": 297155,
+      "avg_delivery_time_min": 34.86,
+      "on_time_pct": 80.44,
+      "cancellation_pct": 4.57,
+      "gmv": 503160020.0
+    },
+    {
+      "zone_name": "South B",
+      "orders": 296519,
+      "avg_delivery_time_min": 35.37,
+      "on_time_pct": 79.95,
+      "cancellation_pct": 4.6,
+      "gmv": 505195600.0
+    },
+    {
+      "zone_name": "Langata",
+      "orders": 296327,
+      "avg_delivery_time_min": 37.83,
+      "on_time_pct": 79.92,
+      "cancellation_pct": 5.16,
+      "gmv": 495981300.0
+    },
+    {
+      "zone_name": "Kasarani",
+      "orders": 247621,
+      "avg_delivery_time_min": 40.97,
+      "on_time_pct": 74.65,
+      "cancellation_pct": 6.6,
+      "gmv": 380336020.0
+    },
+    {
+      "zone_name": "Upper Hill",
+      "orders": 247264,
+      "avg_delivery_time_min": 35.38,
+      "on_time_pct": 75.16,
+      "cancellation_pct": 4.84,
+      "gmv": 405907880.0
+    },
+    {
+      "zone_name": "Runda",
+      "orders": 197994,
+      "avg_delivery_time_min": 36.21,
+      "on_time_pct": 81.75,
+      "cancellation_pct": 4.51,
+      "gmv": 321382250.0
+    },
+    {
+      "zone_name": "Eastleigh",
+      "orders": 197516,
+      "avg_delivery_time_min": 36.88,
+      "on_time_pct": 73.17,
+      "cancellation_pct": 5.12,
+      "gmv": 305823030.0
+    }
+  ]
+}

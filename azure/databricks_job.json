@@ -1,0 +1,121 @@
+{
+  "name": "nairobi-delivery-medallion",
+  "description": "Nairobi delivery orders: ADLS Gen2 landing -> bronze -> silver -> gold -> DQ gate. Source: github.com/JoMatata/spark-delivery-pipeline-azure",
+  "tags": {
+    "project": "nairobi-delivery",
+    "layer": "medallion",
+    "owner": "joan.matata",
+    "cost-center": "data-platform"
+  },
+  "timeout_seconds": 10800,
+  "max_concurrent_runs": 1,
+  "email_notifications": {
+    "on_failure": ["data-alerts@example.com"],
+    "no_alert_for_skipped_runs": true
+  },
+  "health": {
+    "rules": [{ "metric": "RUN_DURATION_SECONDS", "op": "GREATER_THAN", "value": 5400 }]
+  },
+  "schedule": {
+    "quartz_cron_expression": "0 30 2 * * ?",
+    "timezone_id": "Africa/Nairobi",
+    "pause_status": "PAUSED"
+  },
+  "parameters": [
+    { "name": "profile", "default": "azure" },
+    { "name": "config", "default": "/Volumes/delivery/artifacts/conf/config.yaml" }
+  ],
+  "job_clusters": [
+    {
+      "job_cluster_key": "medallion_cluster",
+      "new_cluster": {
+        "spark_version": "15.4.x-scala2.12",
+        "node_type_id": "Standard_D4ds_v5",
+        "driver_node_type_id": "Standard_D4ds_v5",
+        "autoscale": { "min_workers": 2, "max_workers": 6 },
+        "data_security_mode": "SINGLE_USER",
+        "runtime_engine": "PHOTON",
+        "azure_attributes": {
+          "availability": "SPOT_WITH_FALLBACK_AZURE",
+          "first_on_demand": 1,
+          "spot_bid_max_price": -1
+        },
+        "spark_conf": {
+          "spark.sql.shuffle.partitions": "200",
+          "spark.sql.adaptive.enabled": "true",
+          "spark.sql.adaptive.skewJoin.enabled": "true",
+          "spark.sql.sources.partitionOverwriteMode": "dynamic",
+          "spark.sql.session.timeZone": "Africa/Nairobi",
+          "fs.azure.account.auth.type.stnbodeliverylake.dfs.core.windows.net": "OAuth",
+          "fs.azure.account.oauth.provider.type.stnbodeliverylake.dfs.core.windows.net": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+          "fs.azure.account.oauth2.client.id.stnbodeliverylake.dfs.core.windows.net": "{{secrets/kv-delivery/sp-client-id}}",
+          "fs.azure.account.oauth2.client.secret.stnbodeliverylake.dfs.core.windows.net": "{{secrets/kv-delivery/sp-client-secret}}",
+          "fs.azure.account.oauth2.client.endpoint.stnbodeliverylake.dfs.core.windows.net": "https://login.microsoftonline.com/{{secrets/kv-delivery/tenant-id}}/oauth2/token"
+        },
+        "spark_env_vars": {
+          "PIPELINE_PROFILE": "azure",
+          "AZURE_STORAGE_ACCOUNT": "stnbodeliverylake"
+        },
+        "custom_tags": { "project": "nairobi-delivery" }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "bronze",
+      "description": "Ingest landing CSV/JSONL with explicit schemas + lineage columns",
+      "job_cluster_key": "medallion_cluster",
+      "python_wheel_task": {
+        "package_name": "nairobi_delivery_pipeline",
+        "entry_point": "delivery-pipeline",
+        "parameters": ["--stage", "bronze", "--profile", "{{job.parameters.profile}}", "--config", "{{job.parameters.config}}"]
+      },
+      "libraries": [{ "whl": "/Volumes/delivery/artifacts/wheels/nairobi_delivery_pipeline-1.0.0-py3-none-any.whl" }],
+      "max_retries": 2,
+      "min_retry_interval_millis": 300000,
+      "timeout_seconds": 3600
+    },
+    {
+      "task_key": "silver",
+      "description": "Cast, dedupe, resolve late events, DQ rules + quarantine, conform dims",
+      "depends_on": [{ "task_key": "bronze" }],
+      "job_cluster_key": "medallion_cluster",
+      "python_wheel_task": {
+        "package_name": "nairobi_delivery_pipeline",
+        "entry_point": "delivery-pipeline",
+        "parameters": ["--stage", "silver", "--profile", "{{job.parameters.profile}}", "--config", "{{job.parameters.config}}"]
+      },
+      "libraries": [{ "whl": "/Volumes/delivery/artifacts/wheels/nairobi_delivery_pipeline-1.0.0-py3-none-any.whl" }],
+      "max_retries": 1,
+      "timeout_seconds": 5400
+    },
+    {
+      "task_key": "gold",
+      "description": "Daily zone KPIs, courier performance, merchant ranking, hourly demand",
+      "depends_on": [{ "task_key": "silver" }],
+      "job_cluster_key": "medallion_cluster",
+      "python_wheel_task": {
+        "package_name": "nairobi_delivery_pipeline",
+        "entry_point": "delivery-pipeline",
+        "parameters": ["--stage", "gold", "--profile", "{{job.parameters.profile}}", "--config", "{{job.parameters.config}}"]
+      },
+      "libraries": [{ "whl": "/Volumes/delivery/artifacts/wheels/nairobi_delivery_pipeline-1.0.0-py3-none-any.whl" }],
+      "max_retries": 1,
+      "timeout_seconds": 3600
+    },
+    {
+      "task_key": "dq_checks",
+      "description": "Reconciliation + invariant checks; fails the run on any breach",
+      "depends_on": [{ "task_key": "gold" }],
+      "job_cluster_key": "medallion_cluster",
+      "python_wheel_task": {
+        "package_name": "nairobi_delivery_pipeline",
+        "entry_point": "delivery-pipeline",
+        "parameters": ["--stage", "dq", "--profile", "{{job.parameters.profile}}", "--config", "{{job.parameters.config}}"]
+      },
+      "libraries": [{ "whl": "/Volumes/delivery/artifacts/wheels/nairobi_delivery_pipeline-1.0.0-py3-none-any.whl" }],
+      "max_retries": 0,
+      "timeout_seconds": 1800
+    }
+  ]
+}

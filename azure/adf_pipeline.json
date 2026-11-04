@@ -1,0 +1,292 @@
+{
+  "name": "pl_nairobi_delivery_medallion",
+  "properties": {
+    "description": "Nightly: copy OMS exports + app status events into ADLS Gen2 landing, then run the Azure Databricks medallion job (bronze -> silver -> gold -> dq_checks) and wait for the result. Auth to Databricks uses the Data Factory managed identity.",
+    "folder": {
+      "name": "delivery"
+    },
+    "annotations": [
+      "nairobi-delivery",
+      "medallion"
+    ],
+    "parameters": {
+      "databricksWorkspaceUrl": {
+        "type": "string",
+        "defaultValue": "https://adb-1234567890123456.7.azuredatabricks.net"
+      },
+      "databricksJobId": {
+        "type": "int",
+        "defaultValue": 987654321
+      },
+      "pollSeconds": {
+        "type": "int",
+        "defaultValue": 60
+      }
+    },
+    "variables": {
+      "runId": {
+        "type": "String"
+      },
+      "lifeCycleState": {
+        "type": "String",
+        "defaultValue": "PENDING"
+      },
+      "resultState": {
+        "type": "String"
+      }
+    },
+    "activities": [
+      {
+        "name": "Copy OMS orders export to landing",
+        "type": "Copy",
+        "policy": {
+          "timeout": "0.01:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 120
+        },
+        "typeProperties": {
+          "source": {
+            "type": "DelimitedTextSource",
+            "storeSettings": {
+              "type": "SftpReadSettings",
+              "recursive": false,
+              "wildcardFolderPath": "exports/orders",
+              "wildcardFileName": "orders_*.csv",
+              "deleteFilesAfterCompletion": false
+            }
+          },
+          "sink": {
+            "type": "DelimitedTextSink",
+            "storeSettings": {
+              "type": "AzureBlobFSWriteSettings",
+              "copyBehavior": "PreserveHierarchy"
+            }
+          },
+          "enableStaging": false
+        },
+        "inputs": [
+          {
+            "referenceName": "ds_oms_sftp_orders_csv",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_adls_landing_orders_csv",
+            "type": "DatasetReference"
+          }
+        ]
+      },
+      {
+        "name": "Copy app status events to landing",
+        "type": "Copy",
+        "policy": {
+          "timeout": "0.01:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 120
+        },
+        "typeProperties": {
+          "source": {
+            "type": "JsonSource",
+            "storeSettings": {
+              "type": "AzureBlobStorageReadSettings",
+              "recursive": true,
+              "wildcardFolderPath": "app-events/status",
+              "wildcardFileName": "*.jsonl"
+            }
+          },
+          "sink": {
+            "type": "JsonSink",
+            "storeSettings": {
+              "type": "AzureBlobFSWriteSettings",
+              "copyBehavior": "FlattenHierarchy"
+            },
+            "formatSettings": {
+              "type": "JsonWriteSettings",
+              "filePattern": "setOfObjects"
+            }
+          }
+        },
+        "inputs": [
+          {
+            "referenceName": "ds_blob_app_events_json",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_adls_landing_status_events_json",
+            "type": "DatasetReference"
+          }
+        ]
+      },
+      {
+        "name": "Trigger Databricks medallion job",
+        "type": "WebActivity",
+        "dependsOn": [
+          {
+            "activity": "Copy OMS orders export to landing",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Copy app status events to landing",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "0.00:05:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 60,
+          "secureOutput": false
+        },
+        "typeProperties": {
+          "method": "POST",
+          "url": "@concat(pipeline().parameters.databricksWorkspaceUrl, '/api/2.1/jobs/run-now')",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "value": "@json(concat('{\"job_id\":', string(pipeline().parameters.databricksJobId), ',\"job_parameters\":{\"profile\":\"azure\"}}'))",
+            "type": "Expression"
+          },
+          "authentication": {
+            "type": "MSI",
+            "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+          }
+        }
+      },
+      {
+        "name": "Store run id",
+        "type": "SetVariable",
+        "dependsOn": [
+          {
+            "activity": "Trigger Databricks medallion job",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "variableName": "runId",
+          "value": "@string(activity('Trigger Databricks medallion job').output.run_id)"
+        }
+      },
+      {
+        "name": "Wait for job to finish",
+        "type": "Until",
+        "dependsOn": [
+          {
+            "activity": "Store run id",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "expression": {
+            "value": "@or(equals(variables('lifeCycleState'), 'TERMINATED'), or(equals(variables('lifeCycleState'), 'INTERNAL_ERROR'), equals(variables('lifeCycleState'), 'SKIPPED')))",
+            "type": "Expression"
+          },
+          "timeout": "0.03:00:00",
+          "activities": [
+            {
+              "name": "Poll interval",
+              "type": "Wait",
+              "typeProperties": {
+                "waitTimeInSeconds": "@pipeline().parameters.pollSeconds"
+              }
+            },
+            {
+              "name": "Get run status",
+              "type": "WebActivity",
+              "dependsOn": [
+                {
+                  "activity": "Poll interval",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ],
+              "policy": {
+                "retry": 3,
+                "retryIntervalInSeconds": 30
+              },
+              "typeProperties": {
+                "method": "GET",
+                "url": "@concat(pipeline().parameters.databricksWorkspaceUrl, '/api/2.1/jobs/runs/get?run_id=', variables('runId'))",
+                "authentication": {
+                  "type": "MSI",
+                  "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                }
+              }
+            },
+            {
+              "name": "Set life cycle state",
+              "type": "SetVariable",
+              "dependsOn": [
+                {
+                  "activity": "Get run status",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ],
+              "typeProperties": {
+                "variableName": "lifeCycleState",
+                "value": "@activity('Get run status').output.state.life_cycle_state"
+              }
+            },
+            {
+              "name": "Set result state",
+              "type": "SetVariable",
+              "dependsOn": [
+                {
+                  "activity": "Get run status",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ],
+              "typeProperties": {
+                "variableName": "resultState",
+                "value": "@coalesce(activity('Get run status').output.state.result_state, '')"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "Job succeeded?",
+        "type": "IfCondition",
+        "dependsOn": [
+          {
+            "activity": "Wait for job to finish",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "expression": {
+            "value": "@equals(variables('resultState'), 'SUCCESS')",
+            "type": "Expression"
+          },
+          "ifFalseActivities": [
+            {
+              "name": "Fail pipeline",
+              "type": "Fail",
+              "typeProperties": {
+                "message": "@concat('Databricks run ', variables('runId'), ' ended with ', variables('resultState'), '. Check the dq_checks task output / dq_report.json.')",
+                "errorCode": "DATABRICKS_JOB_FAILED"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

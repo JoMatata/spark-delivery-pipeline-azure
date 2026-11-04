@@ -1,0 +1,71 @@
+# Pipeline configuration.
+# Select a profile with `--profile <name>` or the PIPELINE_PROFILE env var.
+# ${VAR} and ${VAR:-default} are expanded from the environment at load time.
+
+default_profile: local
+
+profiles:
+  local:
+    storage:
+      landing: data/landing
+      bronze: data/lake/bronze
+      silver: data/lake/silver
+      gold: data/lake/gold
+      reports: data/reports
+    spark:
+      master: local[*]
+      app_name: nairobi-delivery-medallion
+      conf:
+        spark.driver.memory: ${SPARK_DRIVER_MEMORY:-4g}
+        spark.sql.shuffle.partitions: "16"
+        spark.sql.adaptive.enabled: "true"
+        spark.sql.adaptive.coalescePartitions.enabled: "true"
+        spark.sql.autoBroadcastJoinThreshold: "20971520"   # 20 MB
+        spark.sql.sources.partitionOverwriteMode: dynamic
+        spark.sql.session.timeZone: Africa/Nairobi
+        spark.sql.parquet.compression.codec: snappy
+        spark.ui.enabled: "false"
+        spark.ui.showConsoleProgress: "false"
+
+  azure:
+    # ADLS Gen2 via the abfss:// driver. On Azure Databricks with Unity Catalog,
+    # grant the job's identity access to these paths through an External Location;
+    # without UC, the service-principal OAuth settings are injected by the job
+    # cluster spark_conf (see azure/databricks_job.json).
+    storage:
+      landing: abfss://landing@${AZURE_STORAGE_ACCOUNT:-stnbodeliverylake}.dfs.core.windows.net/delivery
+      bronze: abfss://lakehouse@${AZURE_STORAGE_ACCOUNT:-stnbodeliverylake}.dfs.core.windows.net/bronze
+      silver: abfss://lakehouse@${AZURE_STORAGE_ACCOUNT:-stnbodeliverylake}.dfs.core.windows.net/silver
+      gold: abfss://lakehouse@${AZURE_STORAGE_ACCOUNT:-stnbodeliverylake}.dfs.core.windows.net/gold
+      reports: abfss://lakehouse@${AZURE_STORAGE_ACCOUNT:-stnbodeliverylake}.dfs.core.windows.net/_reports
+    spark:
+      master: null            # provided by the Databricks cluster
+      app_name: nairobi-delivery-medallion
+      conf:
+        spark.sql.shuffle.partitions: "200"
+        spark.sql.adaptive.enabled: "true"
+        spark.sql.adaptive.skewJoin.enabled: "true"
+        spark.sql.autoBroadcastJoinThreshold: "52428800"   # 50 MB
+        spark.sql.sources.partitionOverwriteMode: dynamic
+        spark.sql.session.timeZone: Africa/Nairobi
+
+pipeline:
+  # Bounding box for valid Nairobi metro coordinates (customer drop-off points).
+  bbox:
+    min_lat: -1.45
+    max_lat: -1.15
+    min_lon: 36.60
+    max_lon: 37.05
+  # Raw zone spellings seen in source systems -> canonical zone name.
+  zone_aliases:
+    nairobi cbd: CBD
+    town: CBD
+    upperhill: Upper Hill
+    south-b: South B
+    south-c: South C
+  dq:
+    max_delivery_minutes: 240         # anything slower is treated as a data error
+    max_quarantine_rate: 0.05         # fail the run if >5% of orders are quarantined
+    late_event_threshold_minutes: 60  # event received this long after it happened = late arrival
+  gold:
+    min_deliveries_for_courier_rank: 20
