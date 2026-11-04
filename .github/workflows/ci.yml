@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint-level checks (compile everything, incl. the Airflow DAG)
+        run: python -m compileall -q src scripts dags tests
+
+      - name: Validate Azure definitions are well-formed JSON
+        run: for f in azure/*.json; do python -m json.tool "$f" > /dev/null && echo "ok $f"; done
+
+      - name: Unit + integration tests (local SparkSession)
+        run: python -m pytest -v
+
+      - name: Smoke run - 20k synthetic orders end to end
+        env:
+          PYTHONPATH: src
+          SPARK_DRIVER_MEMORY: 2g
+        run: |
+          python src/generate_data.py --rows 20000 --out data/landing
+          python -m pipeline.run --stage all --profile local
+          cat data/reports/dq_report.json
+
+      - name: Build Databricks wheel
+        run: pip wheel . --no-deps -w dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-wheel
+          path: dist/*.whl
